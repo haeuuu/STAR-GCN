@@ -22,6 +22,8 @@ class GCMCEncoder(nn.Module):
         super().__init__()
         """GCMC Encoder block for STAR-GCN
 
+        Parameters
+        ----------
         edge_types : list
             all edge types
         in_feats_dim : int
@@ -46,7 +48,21 @@ class GCMCEncoder(nn.Module):
 
         self.W_h = nn.Linear(hidden_feats_dim, out_feats_dim)
 
-    def forward(self, graph, ufeats, ifeats, ukey = 'user', ikey = 'item'):
+    def forward(self, graph, ufeats, ifeats, ufreeze = None, ifreeze = None, ukey = 'user', ikey = 'item'):
+        """
+        Parameters
+        ----------
+        graph : dgl.heterograph
+            user -> item and item -> user heterogeneous graph
+        ufeats, ifeats : torch.FlaotTensor
+            node features
+
+        Returns
+        -------
+        ufeats, ifeats : torch.FlaotTensor
+            (n_nodes, out_feats_dim)        
+        """
+
         for encoder in self.encoders:
             ufeats, ifeats = encoder(graph, ufeats, ifeats, ukey, ikey)
 
@@ -67,7 +83,7 @@ class ReconstructionLayer(nn.Module):
         Parameters
         ----------
         in_feats_dim : int
-            dimension of encoder or previous decoder layer output
+            dimension of encoder block or previous decoder layer output
         org_feats_dim : int
             dimension of encoder input
         activation : str
@@ -83,8 +99,16 @@ class ReconstructionLayer(nn.Module):
         """
         Parameters
         ----------
-        feats : torch.FlaotTensor
-            encoder or previous decoder output
+        ufeats, ifeats : torch.FloatTensor
+            (n_nodes, out_feats_dim) or (n_nodes, in_feats_dim) \
+                where out_feats_dim ; encoder output size, in_feats_dim ; init feature size
+            encoder block outputs or previous decoder layer outputs
+
+        Returns
+        -------
+        ufeats, ifeats : torch.FloatTensor
+            n_nodes, in_feats_dim)
+            reconsructed features
         """
         n_users = ufeats.shape[0]
         feats = torch.cat([ufeats, ifeats], dim = 0)
@@ -136,8 +160,15 @@ class ReconstructionDecoder(nn.Module):
         """
         Parameters
         ----------
-        feats : torch.FloatTensor
-            encoder output
+        ufeats, ifeats : torch.FloatTensor
+            (n_nodes, out_feats_dim) where out_feats_dim ; encoder output size
+            encoder block outputs
+
+        Returns
+        -------
+        ufeats, ifeats : torch.FloatTensor
+            (n_nodes, in_feats_dim)
+            reconsructed features
         """
 
         for decoder in self.decoders:
@@ -155,10 +186,25 @@ class STARBlock(nn.Module):
                 out_feats_dim = 75,
                 agg = 'sum',
                 drop_out = 0.5,
-                activation = 'leakey'
+                activation = 'leaky'
                 ):
         super().__init__()
         """STAR-GCN Block with GCMC
+
+        Parameters
+        -----------
+        n_layers_en, n_layers_de : int
+            number of encoder / decoder layer
+        edge_types : list of int or str
+            possibel edge types
+        hidden_feats_dim : int
+            dimension of GCMC convolution output
+        out_feats_dim : int
+            dimension of encoder block output
+        agg : str
+            aggregation type in GCMC convolution
+        drop_out : float
+            neighbor drop out
         """
 
         self.encoder_block = GCMCEncoder(n_layers = n_layers_en,
@@ -173,35 +219,25 @@ class STARBlock(nn.Module):
         self.decoder_block = ReconstructionDecoder(n_layers = n_layers_de,
                                                     in_feats_dim = out_feats_dim,
                                                     org_feats_dim = in_feats_dim,
-                                                    activation = activation)
+                                                    activation = activation,
+                                                    hidden_feats_dim = None)
 
-    def forward(self, graph, ufeats, ifeats, ukey = 'user', ikey = 'item'):
-        ufeats_h, ifeats_h = self.encoder_block(graph, ufeats, ifeats, ukey, ikey)
+    def forward(self, graph, ufeats, ifeats, ufreeze = None, ifreeze = None, ukey = 'user', ikey = 'item'):
+        """
+        Returns
+        -------
+        ufeats_h, ifeats_h : torch.FloatTensor
+            (n_users, out_feats_dim), (n_items, out_feats_dim)
+            hidden features (encoder output)
+
+        ufeats_r, ifeats_r : torch.FloatTensor
+            (n_users, in_feats_dim), (n_items, in_feats_dim)
+            reconstructed features
+        """
+        ufeats_h, ifeats_h = self.encoder_block(graph, ufeats, ifeats, ufreeze, ifreeze, ukey, ikey)
         ufeats_r, ifeats_r = self.decoder_block(ufeats_h, ifeats_h)
 
         return ufeats_h, ifeats_h, ufeats_r, ifeats_r
-
-class RatingPrediction(nn.Module):
-    def __init__(self,
-                in_feats_dim,
-                out_feats_dim = 64):
-        super().__init__()
-        """
-        Parameters
-        ----------
-        in_feats_dim : int
-            dimension of encoder output
-        out_feats_dim
-            dimension of W_u, W_v
-        """
-        self.W_u = nn.Linear(in_feats_dim, out_feats_dim)
-        self.W_v = nn.Linear(in_feats_dim, out_feats_dim)
-
-    def forward(self, graph, ufeats, ifeats):
-        ufeats = self.W_u(ufeats)
-        ifeats = self.W_v(ifeats)
-
-        pass
 
 if __name__ == '__main__':
     from utils import add_degree
@@ -231,7 +267,7 @@ if __name__ == '__main__':
                     out_feats_dim = 24,
                     agg = 'sum',
                     drop_out = 0.,
-                    activation = 'relu')
+                    activation = 'leaky')
 
     ufeats_h, ifeats_h, ufeats_r, ifeats_r = block(g, ufeats, ifeats)
 
