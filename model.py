@@ -24,7 +24,14 @@ class STARGCN(nn.Module):
                 activation = 'leaky',
                 ):
         super().__init__()
-        """
+        """STAR-GCN for link prediction (https://arxiv.org/pdf/1905.13129.pdf)
+
+        Parameters
+        ----------
+        n_blocks : int
+            number of STARBlock module
+        recurrent : bool
+            whether to share weights among STARBlocks
         en_hidden_feats_dim : int
             dimension of GCMC transformation
         r_hidden_feats_dim : int
@@ -51,12 +58,33 @@ class STARGCN(nn.Module):
         self.rating_prediction = RatingPrediction(in_feats_dim = out_feats_dim,
                                                 out_feats_dim = r_hidden_feats_dim)
 
-    def forward(self, graph, ufeats, ifeats, ukey = 'user', ikey = 'item'):
+    def forward(self, enc_graph, dec_graph, ufeats, ifeats, ufreeze = None, ifreeze = None, ukey = 'user', ikey = 'item'):
+        """
+        Parameters
+        ----------
+        enc_graph : dgl.heterograph
+            graph for encoder.forward pass
+        dec_graph : dgl.homograph
+            graph for rating_prediction.forward pass
 
-        results = []
+        Returns
+        -------
+        all_ratings : list of torch.FloatTensor
+            len = n_blocks
+            list of rating prediction results
 
-        for block in self.blocks:
-            ufeats_h, ifeats_h, ufeats_r, ifeats_r = block(graph, ufeats, ifeats, ukey, ikey)
-            results.append((ufeats_h, ifeats_h, ufeats_r, ifeats_r))
+        all_recom_feats : list of torch.FloatTensor
+            len = n_blocks
+            list of reconstructed features
+        """
 
-        return results
+        all_ratings, all_recon_feats = [], []
+        for i in range(self.n_blocks):
+            block = self.blocks[i] if not self.recurrent else self.blocks[0]
+            ufeats_h, ifeats_h, ufeats_r, ifeats_r = block(enc_graph, ufeats, ifeats, ufreeze, ifreeze, ukey, ikey)
+            pred_ratings = self.rating_prediction(dec_graph, ufeats_h, ifeats_h).squeeze(1)
+            
+            all_ratings.append(pred_ratings)
+            all_recon_feats.append((ufeats_r, ifeats_r))
+
+        return all_ratings, all_recon_feats
