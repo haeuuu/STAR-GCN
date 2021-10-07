@@ -10,11 +10,13 @@
 python main.py --data_name=ml-100k train --iteration=2000 --in_feats_dim=32
 ```
 #### **Results**
+model : `2b1l -rm`
 ```
 Best iter : 1400
 Best valid RMSE : 0.9013
 Best test RMSE : 0.9150
 ```
+model : `2b1l`
 ```
 reported RMSE : 0.8950
 ```
@@ -27,11 +29,13 @@ reported RMSE : 0.8950
 python main.py --data_name=ml-1m train --iteration=2000 --in_feats_dim=64
 ```
 #### **Results**
+model : `2b1l -rm`
 ```
 Best iter : 1990
 Best valid RMSE : 0.8565
 Best test RMSE : 0.8547
 ```
+model : `2b1l`
 ```
 reported RMSE : 0.833
 ```
@@ -44,7 +48,7 @@ reported RMSE : 0.833
 </br>
   
 ### **TODO**
+- [ ] apply sample-and-remove strategy and change model `2b1l -rm` to `2b1l`
 - [ ] implement inductive rating prediction
-- [ ] implement masked learning
+- [ ] masked learning
 - [ ] mini-batch learning
-- [ ] sample-and-remove training
