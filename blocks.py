@@ -62,6 +62,8 @@ class GCMCEncoder(nn.Module):
         ufeats, ifeats : torch.FlaotTensor
             (n_nodes, out_feats_dim)        
         """
+        if ufreeze is not None or ifreeze is not None:
+            raise NotImplementedError
 
         for encoder in self.encoders:
             ufeats, ifeats = encoder(graph, ufeats, ifeats, ukey, ikey)
