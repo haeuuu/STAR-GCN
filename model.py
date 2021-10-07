@@ -12,6 +12,7 @@ class STARGCN(nn.Module):
                 n_blocks,
                 n_layers_en,
                 n_layers_de,
+                recurrent,
                 edge_types,
                 in_feats_dim = 64,
                 en_hidden_feats_dim = 250,
@@ -39,6 +40,11 @@ class STARGCN(nn.Module):
                                         agg = agg,
                                         drop_out = drop_out,
                                         activation = activation))
+            if recurrent:
+                break
+
+        self.n_blocks = n_blocks
+        self.recurrent = recurrent
 
     def forward(self, graph, ufeats, ifeats, ukey = 'user', ikey = 'item'):
 
