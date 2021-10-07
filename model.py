@@ -5,6 +5,7 @@ import dgl
 import dgl.function as fn
 
 from blocks import STARBlock
+from loss import RatingPrediction
 
 
 class STARGCN(nn.Module):
@@ -16,6 +17,7 @@ class STARGCN(nn.Module):
                 edge_types,
                 in_feats_dim = 64,
                 en_hidden_feats_dim = 250,
+                r_hidden_feats_dim = 64,
                 out_feats_dim = 75,
                 agg = 'sum',
                 drop_out = 0.5,
@@ -45,6 +47,9 @@ class STARGCN(nn.Module):
 
         self.n_blocks = n_blocks
         self.recurrent = recurrent
+
+        self.rating_prediction = RatingPrediction(in_feats_dim = out_feats_dim,
+                                                out_feats_dim = r_hidden_feats_dim)
 
     def forward(self, graph, ufeats, ifeats, ukey = 'user', ikey = 'item'):
 
