@@ -48,6 +48,11 @@ class GCMCEncoder(nn.Module):
 
         self.W_h = nn.Linear(hidden_feats_dim, out_feats_dim)
 
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.xavier_normal_(self.W_h.weight)
+
     def forward(self, graph, ufeats, ifeats, ufreeze = None, ifreeze = None, ukey = 'user', ikey = 'item'):
         """
         Parameters
@@ -96,6 +101,12 @@ class ReconstructionLayer(nn.Module):
         self.W_1 = nn.Linear(in_feats_dim, hidden_feats_dim)
         self.activation = activation_map[activation]
         self.W_2 = nn.Linear(hidden_feats_dim, org_feats_dim)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        torch.nn.init.xavier_normal_(self.W_1.weight)
+        torch.nn.init.xavier_normal_(self.W_2.weight)
 
     def forward(self, ufeats, ifeats):
         """
